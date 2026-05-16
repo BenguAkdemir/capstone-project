@@ -1,0 +1,7 @@
+[
+  {"day": "monday", "capacity": 4},
+  {"day": "tuesday", "capacity": 4},
+  {"day": "wednesday", "capacity": 3},
+  {"day": "thursday", "capacity": 4},
+  {"day": "friday", "capacity": 3}
+]

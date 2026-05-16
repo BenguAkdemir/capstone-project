@@ -1,0 +1,37 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_SOLVER_URL=http://solver:8001
+      - APP_SOLVER_TIMEOUT_SECONDS=120
+      - APP_LOG_LEVEL=INFO
+    depends_on:
+      solver:
+        condition: service_healthy
+    restart: unless-stopped
+
+  solver:
+    build:
+      context: .
+      dockerfile: solver/Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - SOLVER_TIME_LIMIT_SECONDS=300
+      - SOLVER_MIP_GAP=0.01
+      - SOLVER_LOG_OUTPUT=false
+      - SOLVER_THREADS=0
+      - GRB_LICENSE_FILE=/opt/gurobi/gurobi.lic
+    volumes:
+      - ./gurobi.lic:/opt/gurobi/gurobi.lic:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped

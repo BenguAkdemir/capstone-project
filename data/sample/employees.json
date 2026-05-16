@@ -1,0 +1,8 @@
+[
+  {"employee_id": "E001", "name": "Alice Yılmaz", "department": "Engineering", "min_days": 2, "max_days": 4},
+  {"employee_id": "E002", "name": "Bob Kaya", "department": "Engineering", "min_days": 3, "max_days": 5},
+  {"employee_id": "E003", "name": "Charlie Demir", "department": "Engineering", "min_days": 2, "max_days": 3},
+  {"employee_id": "E004", "name": "Diana Çelik", "department": "Design", "min_days": 2, "max_days": 4},
+  {"employee_id": "E005", "name": "Emre Öztürk", "department": "Design", "min_days": 1, "max_days": 3},
+  {"employee_id": "E006", "name": "Fatma Arslan", "department": "Design", "min_days": 2, "max_days": 5}
+]

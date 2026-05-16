@@ -1,0 +1,6 @@
+[
+  {"department": "Engineering", "day": "tuesday", "min_required": 2},
+  {"department": "Engineering", "day": "thursday", "min_required": 2},
+  {"department": "Design", "day": "monday", "min_required": 2},
+  {"department": "Design", "day": "wednesday", "min_required": 1}
+]

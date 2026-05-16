@@ -1,0 +1,14 @@
+[
+  {"employee_id": "E001", "day": "monday", "preferred": 1},
+  {"employee_id": "E001", "day": "wednesday", "preferred": 1},
+  {"employee_id": "E002", "day": "tuesday", "preferred": 1},
+  {"employee_id": "E002", "day": "thursday", "preferred": 1},
+  {"employee_id": "E003", "day": "monday", "preferred": 1},
+  {"employee_id": "E003", "day": "wednesday", "preferred": 1},
+  {"employee_id": "E004", "day": "monday", "preferred": 1},
+  {"employee_id": "E004", "day": "friday", "preferred": 1},
+  {"employee_id": "E005", "day": "tuesday", "preferred": 1},
+  {"employee_id": "E005", "day": "thursday", "preferred": 1},
+  {"employee_id": "E006", "day": "monday", "preferred": 1},
+  {"employee_id": "E006", "day": "wednesday", "preferred": 1}
+]

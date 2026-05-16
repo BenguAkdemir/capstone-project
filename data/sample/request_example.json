@@ -1,0 +1,74 @@
+{
+  "employees": [
+    {"employee_id": "E001", "name": "Alice Yılmaz",  "department": "Engineering", "min_days": 2, "max_days": 4},
+    {"employee_id": "E002", "name": "Bob Kaya",       "department": "Engineering", "min_days": 3, "max_days": 5},
+    {"employee_id": "E003", "name": "Charlie Demir",  "department": "Engineering", "min_days": 2, "max_days": 3},
+    {"employee_id": "E004", "name": "Diana Çelik",    "department": "Design",      "min_days": 2, "max_days": 4},
+    {"employee_id": "E005", "name": "Emre Öztürk",    "department": "Design",      "min_days": 1, "max_days": 3},
+    {"employee_id": "E006", "name": "Fatma Arslan",   "department": "Design",      "min_days": 2, "max_days": 5}
+  ],
+  "availability": [
+    {"employee_id": "E001", "day": "monday",    "available": 1},
+    {"employee_id": "E001", "day": "tuesday",   "available": 1},
+    {"employee_id": "E001", "day": "wednesday", "available": 1},
+    {"employee_id": "E001", "day": "thursday",  "available": 0},
+    {"employee_id": "E001", "day": "friday",    "available": 1},
+    {"employee_id": "E002", "day": "monday",    "available": 1},
+    {"employee_id": "E002", "day": "tuesday",   "available": 1},
+    {"employee_id": "E002", "day": "wednesday", "available": 1},
+    {"employee_id": "E002", "day": "thursday",  "available": 1},
+    {"employee_id": "E002", "day": "friday",    "available": 1},
+    {"employee_id": "E003", "day": "monday",    "available": 1},
+    {"employee_id": "E003", "day": "tuesday",   "available": 0},
+    {"employee_id": "E003", "day": "wednesday", "available": 1},
+    {"employee_id": "E003", "day": "thursday",  "available": 1},
+    {"employee_id": "E003", "day": "friday",    "available": 0},
+    {"employee_id": "E004", "day": "monday",    "available": 1},
+    {"employee_id": "E004", "day": "tuesday",   "available": 1},
+    {"employee_id": "E004", "day": "wednesday", "available": 0},
+    {"employee_id": "E004", "day": "thursday",  "available": 1},
+    {"employee_id": "E004", "day": "friday",    "available": 1},
+    {"employee_id": "E005", "day": "monday",    "available": 0},
+    {"employee_id": "E005", "day": "tuesday",   "available": 1},
+    {"employee_id": "E005", "day": "wednesday", "available": 1},
+    {"employee_id": "E005", "day": "thursday",  "available": 1},
+    {"employee_id": "E005", "day": "friday",    "available": 1},
+    {"employee_id": "E006", "day": "monday",    "available": 1},
+    {"employee_id": "E006", "day": "tuesday",   "available": 1},
+    {"employee_id": "E006", "day": "wednesday", "available": 1},
+    {"employee_id": "E006", "day": "thursday",  "available": 1},
+    {"employee_id": "E006", "day": "friday",    "available": 0}
+  ],
+  "preferences": [
+    {"employee_id": "E001", "day": "monday",    "preferred": 1},
+    {"employee_id": "E001", "day": "wednesday", "preferred": 1},
+    {"employee_id": "E002", "day": "tuesday",   "preferred": 1},
+    {"employee_id": "E002", "day": "thursday",  "preferred": 1},
+    {"employee_id": "E003", "day": "monday",    "preferred": 1},
+    {"employee_id": "E003", "day": "wednesday", "preferred": 1},
+    {"employee_id": "E004", "day": "monday",    "preferred": 1},
+    {"employee_id": "E004", "day": "friday",    "preferred": 1},
+    {"employee_id": "E005", "day": "tuesday",   "preferred": 1},
+    {"employee_id": "E005", "day": "thursday",  "preferred": 1},
+    {"employee_id": "E006", "day": "monday",    "preferred": 1},
+    {"employee_id": "E006", "day": "wednesday", "preferred": 1}
+  ],
+  "capacity": [
+    {"day": "monday",    "capacity": 4},
+    {"day": "tuesday",   "capacity": 4},
+    {"day": "wednesday", "capacity": 3},
+    {"day": "thursday",  "capacity": 4},
+    {"day": "friday",    "capacity": 3}
+  ],
+  "collaboration": [
+    {"department": "Engineering", "day": "tuesday",   "min_required": 2},
+    {"department": "Engineering", "day": "thursday",  "min_required": 2},
+    {"department": "Design",      "day": "monday",    "min_required": 2},
+    {"department": "Design",      "day": "wednesday", "min_required": 1}
+  ],
+  "weights": {
+    "w_miss": 10.0,
+    "w_idle": 1.0,
+    "w_pref": 2.0
+  }
+}

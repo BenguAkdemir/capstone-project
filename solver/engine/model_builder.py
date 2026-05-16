@@ -34,6 +34,7 @@ class ModelComponents:
     dept_employees: dict[str, set[str]] = field(default_factory=dict)
     avail: dict[tuple[str, Weekday], bool] = field(default_factory=dict)
     pref: dict[tuple[str, Weekday], bool] = field(default_factory=dict)
+    avoid: dict[tuple[str, Weekday], bool] = field(default_factory=dict)
 
 
 def build_model(request: SolveRequest) -> ModelComponents:
@@ -59,8 +60,12 @@ def build_model(request: SolveRequest) -> ModelComponents:
         avail[(a.employee_id, a.day)] = a.available
 
     pref: dict[tuple[str, Weekday], bool] = {}
+    avoid: dict[tuple[str, Weekday], bool] = {}
     for p in request.preferences:
-        pref[(p.employee_id, p.day)] = p.preferred
+        if p.preferred:
+            pref[(p.employee_id, p.day)] = True
+        if p.avoid:
+            avoid[(p.employee_id, p.day)] = True
 
     cap: dict[Weekday, int] = {c.day: c.capacity for c in request.capacity}
     min_days_param: dict[str, int] = {e.employee_id: e.min_days for e in request.employees}
@@ -140,14 +145,20 @@ def build_model(request: SolveRequest) -> ModelComponents:
     # ------------------------------------------------------------------
     # Objective Function
     # ------------------------------------------------------------------
+    # min Z = w_miss * Σ miss_e + w_idle * Σ idle_d + w_pref * (preference violations)
     obj_miss = weights.w_miss * gp.quicksum(miss[e] for e in employees)
     obj_idle = weights.w_idle * gp.quicksum(idle[d] for d in days)
-    obj_pref = weights.w_pref * gp.quicksum(
-        (1.0 - float(pref.get((e, d), False))) * x[(e, d)]
-        for e in employees
-        for d in days
-        if avail.get((e, d), False)
-    )
+
+    pref_terms = []
+    # Unmet preferred onsite days: (1 - x[e,d]) when preferred and available
+    for (e, d), is_pref in pref.items():
+        if is_pref and avail.get((e, d), False) and (e, d) in x:
+            pref_terms.append(1.0 - x[(e, d)])
+    # Avoid-day violations: x[e,d] when employee prefers to avoid onsite
+    for (e, d), is_avoid in avoid.items():
+        if is_avoid and (e, d) in x:
+            pref_terms.append(x[(e, d)])
+    obj_pref = weights.w_pref * gp.quicksum(pref_terms) if pref_terms else 0
 
     model.setObjective(obj_miss + obj_idle + obj_pref, GRB.MINIMIZE)
 
@@ -162,4 +173,5 @@ def build_model(request: SolveRequest) -> ModelComponents:
         dept_employees=dept_employees,
         avail=avail,
         pref=pref,
+        avoid=avoid,
     )

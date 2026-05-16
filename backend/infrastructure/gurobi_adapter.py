@@ -20,15 +20,50 @@ from backend.domain.exceptions import (
 )
 from backend.domain.interfaces import SolverInterface
 from backend.domain.models import (
+    CollaborationGap,
     DaySummary,
     EmployeeMetrics,
     EmployeeSchedule,
+    ScheduleWarning,
     SchedulingInput,
     SchedulingResult,
     TeamAttendance,
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _solver_error_from_response(resp: httpx.Response) -> SolverError:
+    """Map solver HTTP errors to user-facing SolverError messages."""
+    detail = ""
+    try:
+        body = resp.json()
+        detail = str(body.get("detail", body.get("error", "")))
+    except ValueError:
+        detail = resp.text[:500]
+
+    detail_lower = detail.lower()
+    if "hostid mismatch" in detail_lower or "license" in detail_lower:
+        return SolverError(
+            f"Solver HTTP {resp.status_code}: {detail}",
+            user_message=(
+                "Gurobi lisansı bu ortamda geçerli değil. Lisans dosyanız Mac'inize "
+                "tanımlı; Docker içindeki solver farklı bir makine kimliği görüyor. "
+                "Çözüm: Solver'ı Mac'inizde yerel çalıştırın (port 8001) ve "
+                "`docker compose` ile backend/web servislerini kullanın. "
+                "Ayrıntı: " + detail
+            ),
+        )
+    if resp.status_code == 503:
+        return SolverError(
+            f"Solver unavailable: {detail}",
+            user_message="Optimizasyon servisi şu an kullanılamıyor. Solver çalışıyor mu?",
+        )
+
+    return SolverError(
+        f"Solver returned HTTP {resp.status_code}: {detail}",
+        user_message=detail or "Optimizasyon servisinde bir hata oluştu.",
+    )
 
 
 class GurobiHttpAdapter(SolverInterface):
@@ -46,11 +81,23 @@ class GurobiHttpAdapter(SolverInterface):
                 resp = client.post(f"{self._base_url}/solve", json=payload)
         except httpx.TimeoutException as exc:
             raise SolverTimeoutError(elapsed_seconds=self._timeout) from exc
+        except httpx.ConnectError as exc:
+            raise SolverError(
+                f"Cannot connect to solver at {self._base_url}: {exc}",
+                user_message=(
+                    "Optimizasyon servisine bağlanılamadı (port 8001). "
+                    "Ayrı bir terminalde şunu çalıştırın: "
+                    "./scripts/run-solver-local.sh — ardından tekrar deneyin."
+                ),
+            ) from exc
         except httpx.HTTPError as exc:
-            raise SolverError(f"HTTP error calling solver: {exc}") from exc
+            raise SolverError(
+                f"HTTP error calling solver: {exc}",
+                user_message=f"Solver ile iletişim hatası: {exc}",
+            ) from exc
 
         if resp.status_code != 200:
-            raise SolverError(f"Solver returned HTTP {resp.status_code}: {resp.text[:500]}")
+            raise _solver_error_from_response(resp)
 
         data = resp.json()
         return self._deserialize_response(data)
@@ -83,7 +130,8 @@ class GurobiHttpAdapter(SolverInterface):
                 {
                     "employee_id": p.employee_id,
                     "day": p.day.value,
-                    "preferred": p.preferred,
+                    "preferred": bool(p.preferred),
+                    "avoid": bool(p.avoid),
                 }
                 for p in problem.preferences
             ],
@@ -156,6 +204,22 @@ class GurobiHttpAdapter(SolverInterface):
             for ta in data.get("team_attendance", [])
         )
 
+        collaboration_gaps = tuple(
+            CollaborationGap(
+                department=g["department"],
+                day=Weekday(g["day"]),
+                required=g["required"],
+                actual=g["actual"],
+                shortfall=g["shortfall"],
+            )
+            for g in data.get("collaboration_gaps", [])
+        )
+
+        warnings = tuple(
+            ScheduleWarning(code=w["code"], message=w["message"])
+            for w in data.get("warnings", [])
+        )
+
         return SchedulingResult(
             status=status,
             objective_value=data.get("objective_value"),
@@ -165,6 +229,9 @@ class GurobiHttpAdapter(SolverInterface):
             team_attendance=team_attendance,
             total_missing=data.get("total_missing", 0.0),
             total_preference_violations=data.get("total_preference_violations", 0),
+            total_avoid_violations=data.get("total_avoid_violations", 0),
+            collaboration_gaps=collaboration_gaps,
+            warnings=warnings,
             solve_time_seconds=data.get("solve_time_seconds", 0.0),
             infeasibility_explanation=data.get("infeasibility_explanation"),
         )

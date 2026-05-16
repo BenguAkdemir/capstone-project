@@ -59,10 +59,16 @@ class Preference:
     employee_id: str
     day: Weekday
     preferred: bool
+    avoid: bool = False
 
     def __post_init__(self) -> None:
         if not self.employee_id or not self.employee_id.strip():
             raise ValueError("employee_id must not be blank")
+        if self.preferred and self.avoid:
+            raise ValueError(
+                f"preference for {self.employee_id} on {self.day}: "
+                "cannot be both preferred and avoid"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -162,6 +168,21 @@ class TeamAttendance:
 
 
 @dataclass(frozen=True, slots=True)
+class CollaborationGap:
+    department: str
+    day: Weekday
+    required: int
+    actual: int
+    shortfall: int
+
+
+@dataclass(frozen=True, slots=True)
+class ScheduleWarning:
+    code: str
+    message: str
+
+
+@dataclass(frozen=True, slots=True)
 class SchedulingResult:
     """Complete solver output including schedule, metrics, and diagnostics."""
 
@@ -173,5 +194,8 @@ class SchedulingResult:
     team_attendance: tuple[TeamAttendance, ...]
     total_missing: float
     total_preference_violations: int
-    solve_time_seconds: float
+    total_avoid_violations: int = 0
+    collaboration_gaps: tuple[CollaborationGap, ...] = ()
+    warnings: tuple[ScheduleWarning, ...] = ()
+    solve_time_seconds: float = 0.0
     infeasibility_explanation: str | None = None

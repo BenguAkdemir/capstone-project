@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hybrid Work Weekly Planner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <div>
+          <h1>Hybrid Work Weekly Planner</h1>
+          <p class="tagline">Enter team data, optimize the schedule, and changes are saved to the database.</p>
+        </div>
+        <div class="header-actions">
+          <span id="dbBadge" class="badge muted-badge hidden">Loaded from DB</span>
+          <span id="statusBadge" class="badge"></span>
+          <span id="solveTime" class="muted"></span>
+        </div>
+      </header>
+
+      <nav class="tabs" role="tablist">
+        <button type="button" class="tab active" data-tab="input">1. Data entry</button>
+        <button type="button" class="tab" data-tab="schedule">2. Weekly schedule</button>
+        <button type="button" class="tab" data-tab="summary">3. Summary</button>
+        <button type="button" class="tab" data-tab="how">How it works</button>
+      </nav>
+
+      <main class="main">
+        <section id="panel-input" class="panel-view active">
+          <div class="grid-2">
+            <article class="card">
+              <h2>Employees</h2>
+              <p class="help">Each row is one employee. Set weekly minimum and maximum onsite days.</p>
+              <div class="table-scroll">
+                <table class="data-table" id="empInputTable">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Department</th>
+                      <th>Min days</th>
+                      <th>Max days</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+              <button type="button" id="btnAddEmp" class="btn-ghost">+ Add employee</button>
+            </article>
+
+            <article class="card">
+              <h2>Daily office capacity</h2>
+              <p class="help">Maximum number of people allowed onsite each day.</p>
+              <div class="capacity-grid" id="capacityGrid"></div>
+            </article>
+          </div>
+
+          <article class="card">
+            <h2>Weekly availability</h2>
+            <p class="help">Check days when the employee can come to the office.</p>
+            <div class="table-scroll">
+              <table class="data-table matrix" id="availTable">
+                <thead>
+                  <tr>
+                    <th>Employee</th>
+                    <th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="card">
+            <h2>Day preferences <span class="optional">(optional)</span></h2>
+            <p class="help">Mark preferred onsite days or days to avoid.</p>
+            <div class="table-scroll">
+              <table class="data-table matrix" id="prefTable">
+                <thead>
+                  <tr>
+                    <th>Employee</th>
+                    <th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="card">
+            <h2>Team collaboration <span class="optional">(optional)</span></h2>
+            <p class="help">Minimum number of people from a department onsite on a given day.</p>
+            <div class="table-scroll">
+              <table class="data-table" id="collabTable">
+                <thead>
+                  <tr>
+                    <th>Department</th>
+                    <th>Day</th>
+                    <th>Min. people</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <button type="button" id="btnAddCollab" class="btn-ghost">+ Add rule</button>
+          </article>
+
+          <details class="card advanced">
+            <summary>Advanced settings (managers)</summary>
+            <p class="help">Default weights work for most teams.</p>
+            <div class="slider-row">
+              <label>Minimum day target weight <span id="lblMiss">high</span></label>
+              <input type="range" id="wMiss" min="1" max="20" step="1" value="10" />
+            </div>
+            <div class="slider-row">
+              <label>Idle capacity weight <span id="lblIdle">low</span></label>
+              <input type="range" id="wIdle" min="1" max="5" step="1" value="1" />
+            </div>
+            <div class="slider-row">
+              <label>Preference weight <span id="lblPref">medium</span></label>
+              <input type="range" id="wPref" min="1" max="10" step="1" value="2" />
+            </div>
+          </details>
+
+          <p id="errorMsg" class="error-box"></p>
+          <button type="button" id="optimizeBtn" class="btn-primary btn-large">
+            Generate weekly schedule
+          </button>
+        </section>
+
+        <section id="panel-schedule" class="panel-view">
+          <article class="card card-highlight">
+            <div class="card-head-row">
+              <h2>Weekly schedule result</h2>
+              <button type="button" id="btnBackEdit" class="btn-ghost">Edit data</button>
+            </div>
+            <p id="programEmpty" class="empty-state">
+              No schedule yet. Enter data on the Data entry tab and click Generate weekly schedule.
+            </p>
+            <div id="scheduleWrap" class="hidden">
+              <div class="table-scroll">
+                <table class="data-table schedule-result" id="scheduleTable">
+                  <thead>
+                    <tr>
+                      <th>Employee</th>
+                      <th>Department</th>
+                      <th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th>
+                      <th>Total onsite</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+              <div class="legend-simple">
+                <span><i class="chip onsite"></i> Onsite</span>
+                <span><i class="chip remote"></i> Remote</span>
+                <span><i class="chip unavailable"></i> Unavailable</span>
+                <span><i class="chip pref"></i> Preferred day</span>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section id="panel-summary" class="panel-view">
+          <article class="card">
+            <h2>Schedule summary</h2>
+            <div id="summaryCards" class="stat-grid"></div>
+            <h3>Warnings and notes</h3>
+            <ul id="warningsList" class="warn-list"></ul>
+            <h3>Department onsite counts</h3>
+            <div class="table-scroll">
+              <table class="data-table" id="deptTable">
+                <thead>
+                  <tr><th>Department</th><th>Day</th><th>Onsite</th><th>Min required</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <section id="panel-how" class="panel-view">
+          <article class="card formula-card">
+            <h2>What does the system do?</h2>
+            <p>
+              This tool plans <strong>who works onsite vs. remote</strong> for each day of the week.
+              It uses your constraints and preferences to build a balanced schedule.
+            </p>
+          </article>
+
+          <article class="card formula-card">
+            <h2>Hard rules (always enforced)</h2>
+            <ul class="plain-list">
+              <li><strong>Availability:</strong> Employees are only assigned onsite on checked days.</li>
+              <li><strong>Office capacity:</strong> Daily onsite headcount cannot exceed the limit you set.</li>
+              <li><strong>Min–max days:</strong> Each employee has weekly min/max onsite day targets.</li>
+              <li><strong>Collaboration:</strong> Optional minimum department headcount per day.</li>
+            </ul>
+          </article>
+
+          <article class="card formula-card">
+            <h2>What the optimizer improves</h2>
+            <p>Approximate priority order:</p>
+            <ol class="plain-list numbered">
+              <li><strong>Minimum onsite days</strong> — Meet each employee’s minimum target.</li>
+              <li><strong>Idle capacity</strong> — Reduce unused office slots.</li>
+              <li><strong>Preferences</strong> — Honor prefer/avoid day choices when possible.</li>
+            </ol>
+            <p class="note">
+              Preferences are soft constraints; capacity and collaboration rules take precedence.
+            </p>
+          </article>
+
+          <article class="card formula-card muted-box">
+            <h2>Database &amp; background jobs</h2>
+            <p class="small">
+              Employee records are stored in PostgreSQL (<code>employees</code>, <code>employee_availability</code>,
+              etc.). When you generate a schedule, the form is synced by <code>employee_id</code>.
+              A weekly job (Mondays 06:00) normalizes availability rows for the new week.
+            </p>
+          </article>
+        </section>
+      </main>
+    </div>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  </body>
+</html>

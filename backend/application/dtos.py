@@ -72,9 +72,22 @@ class PreferenceDTO(BaseModel):
     employee_id: str = Field(..., min_length=1, max_length=64)
     day: Weekday
     preferred: int = Field(
-        ..., ge=0, le=1,
-        description="1 if the employee prefers to be onsite this day, 0 otherwise.",
+        default=0, ge=0, le=1,
+        description="1 if the employee prefers to be onsite this day (preferred_onsite).",
     )
+    avoid: int = Field(
+        default=0, ge=0, le=1,
+        description="1 if the employee prefers to avoid onsite this day (avoid_onsite).",
+    )
+
+    @model_validator(mode="after")
+    def _pref_not_both(self) -> PreferenceDTO:
+        if self.preferred and self.avoid:
+            raise ValueError(
+                f"employee {self.employee_id} on {self.day.value}: "
+                "cannot set both preferred and avoid"
+            )
+        return self
 
 
 class CapacityDTO(BaseModel):
@@ -167,6 +180,23 @@ class TeamAttendanceDTO(BaseModel):
     count: int = Field(..., ge=0)
 
 
+class CollaborationGapDTO(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    department: str
+    day: Weekday
+    required: int = Field(..., ge=0)
+    actual: int = Field(..., ge=0)
+    shortfall: int = Field(..., ge=0)
+
+
+class ScheduleWarningDTO(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    code: str
+    message: str
+
+
 class SchedulingResponseDTO(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -178,8 +208,18 @@ class SchedulingResponseDTO(BaseModel):
     team_attendance: list[TeamAttendanceDTO]
     total_missing: float = Field(..., ge=0)
     total_preference_violations: int = Field(..., ge=0)
+    total_avoid_violations: int = Field(default=0, ge=0)
+    collaboration_gaps: list[CollaborationGapDTO] = Field(default_factory=list)
+    warnings: list[ScheduleWarningDTO] = Field(default_factory=list)
     solve_time_seconds: float = Field(
         ..., ge=0,
         description="Wall-clock solver time in seconds.",
     )
     infeasibility_explanation: str | None = None
+
+
+class ExportPayloadDTO(BaseModel):
+    """Combined request + response for CSV export."""
+
+    request: SchedulingRequestDTO
+    response: SchedulingResponseDTO

@@ -62,7 +62,7 @@ def register_error_handlers(app: FastAPI) -> None:
             status_code=502,
             content={
                 "error": "solver_error",
-                "message": "The optimization solver encountered an internal error",
+                "message": exc.user_message,
             },
         )
 

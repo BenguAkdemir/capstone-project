@@ -179,7 +179,8 @@ class FileLoader(DataLoaderInterface):
                     Preference(
                         employee_id=str(item["employee_id"]),
                         day=self._parse_weekday(item["day"], f"{path.name}[{i}]"),
-                        preferred=bool(int(item["preferred"])),
+                        preferred=bool(int(item.get("preferred", item.get("preferred_onsite", 0)))),
+                        avoid=bool(int(item.get("avoid", item.get("avoid_onsite", 0)))),
                     )
                 )
             except (KeyError, TypeError, ValueError) as exc:

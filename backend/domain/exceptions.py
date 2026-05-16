@@ -31,7 +31,15 @@ class InvalidInputError(SchedulingError):
 
 
 class SolverError(SchedulingError):
-    """The optimization solver encountered an internal error."""
+    """The optimization solver encountered an internal error.
+
+    Attributes:
+        user_message: Plain-language message safe to show in the UI.
+    """
+
+    def __init__(self, message: str, *, user_message: str | None = None) -> None:
+        self.user_message = user_message or message
+        super().__init__(message)
 
 
 class InfeasibleError(SchedulingError):

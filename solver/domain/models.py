@@ -52,7 +52,8 @@ class PreferenceInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     employee_id: str
     day: Weekday
-    preferred: bool
+    preferred: bool = False
+    avoid: bool = False
 
 
 class CapacityInput(BaseModel):
@@ -115,6 +116,19 @@ class TeamAttendanceOutput(BaseModel):
     count: int
 
 
+class CollaborationGapOutput(BaseModel):
+    department: str
+    day: Weekday
+    required: int = Field(ge=0)
+    actual: int = Field(ge=0)
+    shortfall: int = Field(ge=0)
+
+
+class ScheduleWarningOutput(BaseModel):
+    code: str
+    message: str
+
+
 class SolveResponse(BaseModel):
     status: SolverStatus
     objective_value: float | None = None
@@ -124,5 +138,8 @@ class SolveResponse(BaseModel):
     team_attendance: list[TeamAttendanceOutput] = []
     total_missing: float = 0.0
     total_preference_violations: int = 0
+    total_avoid_violations: int = 0
+    collaboration_gaps: list[CollaborationGapOutput] = []
+    warnings: list[ScheduleWarningOutput] = []
     solve_time_seconds: float = 0.0
     infeasibility_explanation: str | None = None

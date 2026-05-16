@@ -1,4 +1,31 @@
+# Default: backend + web + postgres in Docker; Gurobi solver on Mac (port 8001).
+# Academic license is tied to Mac host ID; solver does not run in Docker by default.
+#
+# Start local solver:
+#   ./scripts/run-solver-local.sh
+#
+# Start stack:
+#   docker compose up --build
+
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: scheduler
+      POSTGRES_PASSWORD: scheduler
+      POSTGRES_DB: hybrid_scheduler
+    # Host 5432 is often taken by local Postgres — use 5433 from your Mac only.
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scheduler -d hybrid_scheduler"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   backend:
     build:
       context: .
@@ -6,15 +33,34 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - APP_SOLVER_URL=http://solver:8001
+      - APP_SOLVER_URL=http://host.docker.internal:8001
       - APP_SOLVER_TIMEOUT_SECONDS=120
       - APP_LOG_LEVEL=INFO
+      - APP_DATABASE_URL=postgresql+psycopg2://scheduler:scheduler@postgres:5432/hybrid_scheduler
+      - APP_WEEKLY_REFRESH_ENABLED=true
+      - APP_WEEKLY_REFRESH_DAY=mon
+      - APP_WEEKLY_REFRESH_HOUR=6
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
-      solver:
+      postgres:
         condition: service_healthy
     restart: unless-stopped
 
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - WEB_BACKEND_URL=http://backend:8000
+    depends_on:
+      - backend
+    restart: unless-stopped
+
   solver:
+    profiles: ["docker-solver"]
     build:
       context: .
       dockerfile: solver/Dockerfile
@@ -29,9 +75,18 @@ services:
     volumes:
       - ./gurobi.lic:/opt/gurobi/gurobi.lic:ro
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')",
+        ]
       interval: 10s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 15s
     restart: unless-stopped
+
+volumes:
+  postgres_data:

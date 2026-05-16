@@ -207,7 +207,7 @@ class InputValidator:
                     "collaboration",
                     f"Department '{collab.department}' has {dept_size} employee(s) "
                     f"but requires {collab.min_required} on {collab.day.value}",
-                    Severity.WARNING,
+                    Severity.ERROR,
                 ))
 
     @staticmethod

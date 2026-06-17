@@ -278,13 +278,38 @@ async function syncToDatabase(payload) {
   }
 }
 
+const FIELD_LABELS = {
+  employees: "Employees",
+  availability: "Availability",
+  preferences: "Preferences",
+  capacity: "Capacity",
+  collaboration: "Collaboration",
+};
+
+function formatValidationIssues(issues) {
+  return issues
+    .map((i) => {
+      const label = FIELD_LABELS[i.field] || i.field;
+      return `[${label}] ${i.message}`;
+    })
+    .join("\n");
+}
+
+function formatInfeasibility(data) {
+  const lines = [data.explanation || data.message || "No feasible schedule found."];
+  (data.rules || []).forEach((rule) => lines.push(`• ${rule}`));
+  return lines.join("\n");
+}
+
 function validateBeforeSubmit(employees) {
   for (const e of employees) {
     if (e.min_days > e.max_days) {
-      throw new Error(`${e.name}: min days cannot exceed max days.`);
+      throw new Error(
+        `${e.name}: minimum office days (${e.min_days}) cannot exceed maximum (${e.max_days}).`,
+      );
     }
     if (e.min_days > 5 || e.max_days > 5) {
-      throw new Error(`${e.name}: weekly days cannot exceed 5.`);
+      throw new Error(`${e.name}: weekly office days cannot exceed 5.`);
     }
   }
 
@@ -292,6 +317,9 @@ function validateBeforeSubmit(employees) {
   employees.forEach((e) => {
     deptCounts[e.department] = (deptCounts[e.department] || 0) + 1;
   });
+
+  const capacityByDay = Object.fromEntries(buildCapacity().map((c) => [c.day, c.capacity]));
+  const collabByDay = {};
 
   document.querySelectorAll("#collabTable tbody tr").forEach((tr) => {
     const department = tr.querySelector(".collab-dept")?.value;
@@ -305,10 +333,45 @@ function validateBeforeSubmit(employees) {
         `Department "${department}" has ${size} employee(s); cannot require ${min_required} onsite on ${dayLabel}.`,
       );
     }
+    const dayCap = capacityByDay[day];
+    if (dayCap != null && min_required > dayCap) {
+      const dayLabel = DAYS.find((d) => d.key === day)?.label || day;
+      throw new Error(
+        `Department "${department}" requires at least ${min_required} onsite on ${dayLabel}, but office capacity is only ${dayCap}.`,
+      );
+    }
+    collabByDay[day] = (collabByDay[day] || 0) + min_required;
   });
+
+  for (const [day, totalRequired] of Object.entries(collabByDay)) {
+    const dayCap = capacityByDay[day];
+    if (dayCap != null && totalRequired > dayCap) {
+      const dayLabel = DAYS.find((d) => d.key === day)?.label || day;
+      throw new Error(
+        `On ${dayLabel}, department minimums total ${totalRequired}, which exceeds office capacity (${dayCap}).`,
+      );
+    }
+  }
 
   for (const c of buildCapacity()) {
     if (c.capacity < 1) throw new Error("Office capacity must be at least 1.");
+  }
+
+  const avail = buildAvailability();
+  for (const e of employees) {
+    const availableDays = DAYS.filter((d) =>
+      avail.some((a) => a.employee_id === e.employee_id && a.day === d.key && a.available),
+    ).length;
+    if (e.min_days > availableDays) {
+      throw new Error(
+        `${e.name}: minimum office days (${e.min_days}) exceeds available days (${availableDays}).`,
+      );
+    }
+    if (e.max_days > availableDays) {
+      throw new Error(
+        `${e.name}: maximum office days (${e.max_days}) exceeds available days (${availableDays}).`,
+      );
+    }
   }
 }
 
@@ -410,7 +473,8 @@ function renderSummary(result) {
     wl.innerHTML += `<li class="bad">${result.infeasibility_explanation}</li>`;
   }
   (result.warnings || []).forEach((w) => {
-    wl.innerHTML += `<li>${w.message}</li>`;
+    const cls = w.code?.startsWith("infeasible") ? "bad" : "";
+    wl.innerHTML += `<li class="${cls}">${w.message}</li>`;
   });
   if (!wl.children.length) {
     wl.innerHTML = `<li class="ok">No warnings — schedule looks consistent.</li>`;
@@ -453,7 +517,7 @@ function setStatus(result) {
   b.textContent = statusLabel(result.status);
   b.className = `badge visible ${result.status === "optimal" ? "ok" : "warn"}`;
   $("solveTime").textContent = result.solve_time_seconds
-    ? `Solve: ${result.solve_time_seconds.toFixed(1)} sn`
+    ? `Solve: ${result.solve_time_seconds.toFixed(1)}s`
     : "";
 }
 
@@ -461,8 +525,11 @@ function showError(msg) {
   const el = $("errorMsg");
   if (msg) {
     el.textContent = msg;
+    el.style.whiteSpace = "pre-line";
     el.classList.add("visible");
   } else {
+    el.textContent = "";
+    el.style.whiteSpace = "";
     el.classList.remove("visible");
   }
 }
@@ -485,21 +552,25 @@ async function optimize() {
 
     if (!res.ok) {
       if (res.status === 422 && Array.isArray(data.issues)) {
-        throw new Error(data.issues.map((i) => i.message).join(" "));
+        throw new Error(formatValidationIssues(data.issues));
       }
       if (res.status === 409) {
+        const explanation = formatInfeasibility(data);
         lastResponse = { ...data, status: "infeasible" };
         setStatus(lastResponse);
         renderSchedule(null);
         renderSummary({
           status: "infeasible",
           infeasibility_explanation: data.explanation || data.message,
-          warnings: [],
+          warnings: (data.rules || []).map((rule) => ({
+            code: "infeasible_rule",
+            message: rule,
+          })),
           day_summaries: [],
           team_attendance: [],
         });
         switchTab("summary");
-        throw new Error(data.explanation || data.message || "No feasible schedule found.");
+        throw new Error(explanation);
       }
       throw new Error(
         data.message || data.explanation || data.error || `Error (${res.status})`,

@@ -39,11 +39,19 @@ def extract_results(
                     message=outcome.infeasibility_explanation,
                 )
             )
+        for rule in outcome.infeasibility_rules:
+            warnings.append(
+                ScheduleWarningOutput(
+                    code="infeasible_rule",
+                    message=rule,
+                )
+            )
         return SolveResponse(
             status=outcome.status,
             objective_value=outcome.objective_value,
             solve_time_seconds=outcome.solve_time_seconds,
             infeasibility_explanation=outcome.infeasibility_explanation,
+            infeasibility_rules=list(outcome.infeasibility_rules),
             warnings=warnings,
         )
 

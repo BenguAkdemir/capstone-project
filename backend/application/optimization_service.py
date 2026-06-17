@@ -32,7 +32,7 @@ class OptimizationService:
         if not validation_result.is_valid:
             raise InvalidInputError(
                 issues=validation_result.to_dicts(),
-                message=f"Input has {len(validation_result.errors)} validation error(s)",
+                message=validation_result.summary_message(),
             )
         if validation_result.warnings:
             logger.warning(

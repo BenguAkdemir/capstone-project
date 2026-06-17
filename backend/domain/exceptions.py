@@ -47,10 +47,17 @@ class InfeasibleError(SchedulingError):
 
     Attributes:
         explanation: Human-readable description of why the model is infeasible.
+        rules: Specific conflicting rules identified by the solver (if any).
     """
 
-    def __init__(self, explanation: str) -> None:
+    def __init__(
+        self,
+        explanation: str,
+        *,
+        rules: list[str] | None = None,
+    ) -> None:
         self.explanation = explanation
+        self.rules = rules or []
         super().__init__(explanation)
 
 

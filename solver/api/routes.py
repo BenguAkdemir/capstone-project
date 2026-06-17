@@ -26,7 +26,7 @@ def solve(request: SolveRequest) -> SolveResponse:
 
     try:
         components = build_model(request)
-        outcome = run_optimization(components)
+        outcome = run_optimization(components, request)
         response = extract_results(request, components, outcome)
     except Exception as exc:
         logger.exception("Solver internal error")

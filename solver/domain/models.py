@@ -143,3 +143,4 @@ class SolveResponse(BaseModel):
     warnings: list[ScheduleWarningOutput] = []
     solve_time_seconds: float = 0.0
     infeasibility_explanation: str | None = None
+    infeasibility_rules: list[str] = Field(default_factory=list)

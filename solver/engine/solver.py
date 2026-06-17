@@ -12,7 +12,8 @@ from dataclasses import dataclass
 from gurobipy import GRB
 
 from solver.config import settings
-from solver.domain.models import SolverStatus
+from solver.domain.models import SolveRequest, SolverStatus
+from solver.engine.infeasibility_explainer import explain_infeasibility
 from solver.engine.model_builder import ModelComponents
 
 
@@ -24,9 +25,13 @@ class SolveOutcome:
     objective_value: float | None
     solve_time_seconds: float
     infeasibility_explanation: str | None = None
+    infeasibility_rules: tuple[str, ...] = ()
 
 
-def run_optimization(components: ModelComponents) -> SolveOutcome:
+def run_optimization(
+    components: ModelComponents,
+    request: SolveRequest | None = None,
+) -> SolveOutcome:
     """Configure and run the Gurobi optimizer, returning a typed outcome."""
 
     model = components.model
@@ -51,12 +56,13 @@ def run_optimization(components: ModelComponents) -> SolveOutcome:
         )
 
     if grb_status == GRB.INFEASIBLE:
-        explanation = _compute_infeasibility_explanation(model)
+        explanation, rules = _compute_infeasibility_explanation(model, request)
         return SolveOutcome(
             status=SolverStatus.INFEASIBLE,
             objective_value=None,
             solve_time_seconds=elapsed,
             infeasibility_explanation=explanation,
+            infeasibility_rules=tuple(rules),
         )
 
     if grb_status == GRB.TIME_LIMIT:
@@ -77,7 +83,10 @@ def run_optimization(components: ModelComponents) -> SolveOutcome:
             status=SolverStatus.INFEASIBLE,
             objective_value=None,
             solve_time_seconds=elapsed,
-            infeasibility_explanation="Model is infeasible or unbounded",
+            infeasibility_explanation=(
+                "The submitted rules are inconsistent; the problem is "
+                "mathematically infeasible or unbounded."
+            ),
         )
 
     return SolveOutcome(
@@ -88,17 +97,20 @@ def run_optimization(components: ModelComponents) -> SolveOutcome:
     )
 
 
-def _compute_infeasibility_explanation(model) -> str:
-    """Attempt to compute IIS and return human-readable constraint names."""
+def _compute_infeasibility_explanation(
+    model,
+    request: SolveRequest | None = None,
+) -> tuple[str, list[str]]:
+    """Compute IIS and return manager-friendly summary + rule messages."""
     try:
         model.computeIIS()
         iis_constrs = [c.ConstrName for c in model.getConstrs() if c.IISConstr]
         if iis_constrs:
-            limited = iis_constrs[:10]
-            msg = "Irreducible Infeasible Subsystem (IIS) constraints: " + ", ".join(limited)
-            if len(iis_constrs) > 10:
-                msg += f" ... and {len(iis_constrs) - 10} more"
-            return msg
+            return explain_infeasibility(iis_constrs, request)
     except Exception:
         pass
-    return "Model is infeasible (IIS computation failed)"
+    return (
+        "The submitted rules conflict; no feasible schedule could be built "
+        "(infeasibility analysis could not be completed).",
+        [],
+    )

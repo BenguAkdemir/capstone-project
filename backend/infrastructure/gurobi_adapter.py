@@ -47,22 +47,21 @@ def _solver_error_from_response(resp: httpx.Response) -> SolverError:
         return SolverError(
             f"Solver HTTP {resp.status_code}: {detail}",
             user_message=(
-                "Gurobi lisansı bu ortamda geçerli değil. Lisans dosyanız Mac'inize "
-                "tanımlı; Docker içindeki solver farklı bir makine kimliği görüyor. "
-                "Çözüm: Solver'ı Mac'inizde yerel çalıştırın (port 8001) ve "
-                "`docker compose` ile backend/web servislerini kullanın. "
-                "Ayrıntı: " + detail
+                "The Gurobi license is not valid in this environment. Your license "
+                "may be bound to a different machine than the solver container. "
+                "Run the solver locally on port 8001 and use docker compose for "
+                "backend/web services. Details: " + detail
             ),
         )
     if resp.status_code == 503:
         return SolverError(
             f"Solver unavailable: {detail}",
-            user_message="Optimizasyon servisi şu an kullanılamıyor. Solver çalışıyor mu?",
+            user_message="The optimization service is unavailable. Is the solver running?",
         )
 
     return SolverError(
         f"Solver returned HTTP {resp.status_code}: {detail}",
-        user_message=detail or "Optimizasyon servisinde bir hata oluştu.",
+        user_message=detail or "An error occurred in the optimization service.",
     )
 
 
@@ -85,15 +84,15 @@ class GurobiHttpAdapter(SolverInterface):
             raise SolverError(
                 f"Cannot connect to solver at {self._base_url}: {exc}",
                 user_message=(
-                    "Optimizasyon servisine bağlanılamadı (port 8001). "
-                    "Ayrı bir terminalde şunu çalıştırın: "
-                    "./scripts/run-solver-local.sh — ardından tekrar deneyin."
+                    "Cannot connect to the optimization service (port 8001). "
+                    "In a separate terminal run: ./scripts/run-solver-local.sh "
+                    "— then try again."
                 ),
             ) from exc
         except httpx.HTTPError as exc:
             raise SolverError(
                 f"HTTP error calling solver: {exc}",
-                user_message=f"Solver ile iletişim hatası: {exc}",
+                user_message=f"Communication error with solver: {exc}",
             ) from exc
 
         if resp.status_code != 200:
@@ -159,7 +158,11 @@ class GurobiHttpAdapter(SolverInterface):
 
         if status == SolverStatus.INFEASIBLE:
             raise InfeasibleError(
-                explanation=data.get("infeasibility_explanation", "Model is infeasible")
+                explanation=data.get(
+                    "infeasibility_explanation",
+                    "The submitted rules conflict; no feasible schedule exists.",
+                ),
+                rules=data.get("infeasibility_rules") or [],
             )
         if status == SolverStatus.TIMEOUT:
             raise SolverTimeoutError(

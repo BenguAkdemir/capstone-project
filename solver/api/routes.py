@@ -6,7 +6,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException
 
-from solver.domain.models import SolveRequest, SolveResponse, SolverStatus
+from solver.domain.models import SolveRequest, SolveResponse
 from solver.engine.model_builder import build_model
 from solver.engine.result_extractor import extract_results
 from solver.engine.solver import run_optimization

@@ -297,7 +297,7 @@ function formatValidationIssues(issues) {
 
 function formatInfeasibility(data) {
   const lines = [data.explanation || data.message || "No feasible schedule found."];
-  (data.rules || []).forEach((rule) => lines.push(`• ${rule}`));
+  (data.rules || []).forEach((rule) => lines.pusπh(`• ${rule}`));
   return lines.join("\n");
 }
 

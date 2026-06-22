@@ -296,8 +296,14 @@ function formatValidationIssues(issues) {
 }
 
 function formatInfeasibility(data) {
-  const lines = [data.explanation || data.message || "No feasible schedule found."];
-  (data.rules || []).forEach((rule) => lines.pusπh(`• ${rule}`));
+  const explanation =
+    data.infeasibility_explanation ||
+    data.explanation ||
+    data.message ||
+    "No feasible schedule found.";
+  const rules = data.infeasibility_rules || data.rules || [];
+  const lines = [explanation];
+  rules.forEach((rule) => lines.push(`• ${rule}`));
   return lines.join("\n");
 }
 
@@ -556,13 +562,15 @@ async function optimize() {
       }
       if (res.status === 409) {
         const explanation = formatInfeasibility(data);
+        const rules = data.infeasibility_rules || data.rules || [];
         lastResponse = { ...data, status: "infeasible" };
         setStatus(lastResponse);
         renderSchedule(null);
         renderSummary({
           status: "infeasible",
-          infeasibility_explanation: data.explanation || data.message,
-          warnings: (data.rules || []).map((rule) => ({
+          infeasibility_explanation:
+            data.infeasibility_explanation || data.explanation || data.message,
+          warnings: rules.map((rule) => ({
             code: "infeasible_rule",
             message: rule,
           })),
